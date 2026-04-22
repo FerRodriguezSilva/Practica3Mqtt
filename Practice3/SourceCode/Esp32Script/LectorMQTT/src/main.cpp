@@ -29,7 +29,7 @@ const char* TOPIC_LED_CMD   = "home/garden/UCBBOL/IotEC3Mqttactuator";
 #define LED2_PIN   26
 #define LED3_PIN   27
 
-// ---------------------------- Global Objects ----------------------------
+
 UltrasonicSensor ultrasonic(TRIG_PIN, ECHO_PIN, MAX_DIST);
 LedController leds(LED1_PIN, LED2_PIN, LED3_PIN);
 MqttManager mqttManager(MQTT_BROKER, MQTT_PORT, MQTT_USERNAME, MQTT_PASSWORD);
@@ -40,7 +40,7 @@ MqttSubscriber* subscriber = nullptr;
 unsigned long lastPublishTime = 0;
 const unsigned long PUBLISH_INTERVAL = 2000;
 
-// ------------------------------------------------------------------------
+
 void setup() {
     Serial.begin(115200);
 

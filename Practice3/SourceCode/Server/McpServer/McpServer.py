@@ -3,17 +3,13 @@ import time
 import json
 from mcp.server.fastmcp import FastMCP
 
-# Initialize FastMCP server
 mcp = FastMCP("esp32_led_controller")
 
-# MQTT Configuration (MATCH YOUR ESP32 SETUP)
 MQTT_BROKER = "broker.hivemq.com"
 MQTT_PORT = 1883
 MQTT_TOPIC_LED = "home/garden/UCBBOL/IotEC3Mqttactuator"
 MQTT_TOPIC_DISTANCE = "home/garden/UCBBOL/IotEC3Mqttdistance"
 
-# LED Color to Number Mapping (ESP32 configuration)
-# ESP32: AZUL=1 (pin25), ROJO=2 (pin26), VERDE=3 (pin27)
 LED_MAPPING = {
     "azul": 1,
     "blue": 1,
@@ -23,15 +19,12 @@ LED_MAPPING = {
     "green": 3
 }
 
-# Global variable to store the latest distance reading
 latest_distance = None
 last_distance_time = 0
 distance_received = False
 
-# MQTT Callback functions
 def on_connect(client, userdata, flags, rc):
     print(f"Connected to MQTT broker with result code {rc}")
-    # Subscribe to distance topic
     result = client.subscribe(MQTT_TOPIC_DISTANCE)
     print(f"Subscribed to {MQTT_TOPIC_DISTANCE} with result {result}")
     print("Waiting for distance data from ESP32...")
@@ -56,7 +49,6 @@ def on_message(client, userdata, msg):
     else:
         print(f"Unhandled topic: {msg.topic} with payload: {msg.payload.decode()}")
 
-# Setup MQTT Client with callbacks
 mqtt_client = mqtt.Client()
 mqtt_client.on_connect = on_connect
 mqtt_client.on_message = on_message
@@ -65,7 +57,6 @@ print(f"Connecting to MQTT broker {MQTT_BROKER}:{MQTT_PORT}...")
 mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
 mqtt_client.loop_start()
 
-# Wait a moment for connection and subscription to complete
 time.sleep(2)
 
 @mcp.tool()
@@ -76,23 +67,18 @@ def encender_led(color: str) -> str:
         color: Color of LED to turn on ("azul", "rojo", or "verde")
                Also accepts English: "blue", "red", "green"
     """
-    # Normalize color input
     color_lower = color.lower().strip()
     
-    # Check if color exists in mapping
     if color_lower not in LED_MAPPING:
         available = ", ".join(LED_MAPPING.keys())
         return f"Error: Color '{color}' no valido. Colores disponibles: {available}"
     
-    # Get the correct LED number for ESP32
     led_number = LED_MAPPING[color_lower]
     
-    # Send command to ESP32
     command = str(led_number)
     result = mqtt_client.publish(MQTT_TOPIC_LED, command)
     print(f"Published command '{command}' to {MQTT_TOPIC_LED}, result: {result}")
     
-    # Map back to Spanish color name for response
     color_name = next((k for k, v in LED_MAPPING.items() if v == led_number and k in ["azul", "rojo", "verde"]), color_lower)
     
     return f"LED {color_name.upper()} encendido (comando: {command})"
@@ -107,10 +93,8 @@ def encender_led_por_numero(led_number: int) -> str:
     if led_number not in [1, 2, 3]:
         return f"Error: Numero de LED debe ser 1 (azul), 2 (rojo), o 3 (verde)"
     
-    # Send command to ESP32
     mqtt_client.publish(MQTT_TOPIC_LED, str(led_number))
     
-    # Map number to color name
     color_map = {1: "AZUL", 2: "ROJO", 3: "VERDE"}
     color = color_map[led_number]
     
@@ -119,7 +103,6 @@ def encender_led_por_numero(led_number: int) -> str:
 @mcp.tool()
 def apagar_todos_los_leds() -> str:
     """Turn off all LEDs."""
-    # Send any command other than "1", "2", "3" to turn all off
     mqtt_client.publish(MQTT_TOPIC_LED, "off")
     return "Todos los LEDs apagados"
 
@@ -132,18 +115,14 @@ def parpadear_led(color: str, veces: int = 3, intervalo_ms: int = 500) -> str:
         veces: Number of times to blink (default: 3)
         intervalo_ms: Interval in milliseconds between blinks (default: 500)
     """
-    # Normalize color input
     color_lower = color.lower().strip()
     
-    # Check if color exists in mapping
     if color_lower not in LED_MAPPING:
         available = ", ".join(LED_MAPPING.keys())
         return f"Error: Color '{color}' no valido. Colores disponibles: {available}"
     
-    # Get the correct LED number for ESP32
     led_number = LED_MAPPING[color_lower]
     
-    # Get color name for response
     color_name = next((k for k, v in LED_MAPPING.items() if v == led_number and k in ["azul", "rojo", "verde"]), color_lower)
     
     result = f"Parpadeando LED {color_name.upper()} {veces} veces...\n"
@@ -183,7 +162,6 @@ def obtener_distancia() -> str:
     if latest_distance is None:
         return "Esperando primera lectura del sensor ultrasonico..."
     
-    # Check if data is recent (less than 5 seconds old)
     time_since_last = time.time() - last_distance_time
     if time_since_last > 5:
         return f"Advertencia: La ultima lectura de distancia tiene {time_since_last:.0f} segundos. Distancia: {latest_distance} cm"
@@ -202,7 +180,6 @@ def obtener_estado_completo() -> str:
     
     status = "=== ESTADO COMPLETO DEL SISTEMA ===\n\n"
     
-    # MQTT Connection Status
     status += "[CONEXION MQTT]\n"
     if mqtt_client.is_connected():
         status += f"  Broker: {MQTT_BROKER}:{MQTT_PORT} - CONECTADO\n"
@@ -212,7 +189,6 @@ def obtener_estado_completo() -> str:
     else:
         status += "  Broker MQTT: DESCONECTADO\n"
     
-    # Distance Sensor Status
     status += "\n[SENSOR ULTRASONICO]\n"
     if not distance_received:
         status += "  Estado: Esperando datos del sensor...\n"
@@ -229,7 +205,6 @@ def obtener_estado_completo() -> str:
         else:
             status += "  Estado: Operacion normal\n"
     
-    # LED Configuration Status
     status += "\n[CONFIGURACION DE LEDS]\n"
     status += "  AZUL  -> comando '1' (pin 25)\n"
     status += "  ROJO  -> comando '2' (pin 26)\n"
@@ -259,9 +234,8 @@ def monitorear_distancia(duracion_segundos: int = 10) -> str:
             last_recorded_distance = latest_distance
             readings.append(latest_distance)
             result += f"Tiempo: {time.time() - start_time:.1f}s -> Distancia: {latest_distance} cm\n"
-        time.sleep(0.5)  # Check every half second
+        time.sleep(0.5)  
     
-    # Calculate statistics
     if readings:
         avg_distance = sum(readings) / len(readings)
         min_distance = min(readings)
